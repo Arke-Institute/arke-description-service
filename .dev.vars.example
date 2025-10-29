@@ -1,0 +1,5 @@
+# Example environment variables for local development
+# Copy this file to .dev.vars and fill in your actual values
+# .dev.vars is gitignored and won't be committed
+
+DEEPINFRA_API_KEY=your_deepinfra_api_key_here

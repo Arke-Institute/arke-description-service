@@ -1,0 +1,25 @@
+{
+  // Worker configuration for arke-description-service
+  "name": "arke-description-service",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-01-01",
+
+  // Environment variables
+  "vars": {
+    "DEEPINFRA_BASE_URL": "https://api.deepinfra.com/v1/openai",
+    "MODEL_NAME": "openai/gpt-oss-20b"
+  },
+
+  // Note: Set DEEPINFRA_API_KEY as a secret using:
+  // wrangler secret put DEEPINFRA_API_KEY
+
+  // Build configuration
+  "build": {
+    "command": "npm run build"
+  },
+
+  // Observability
+  "observability": {
+    "enabled": true
+  }
+}

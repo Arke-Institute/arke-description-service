@@ -1,0 +1,18 @@
+{
+  "directory_name": "Summer_Vacation_1985",
+  "manual_metadata": {
+    "year": 1985,
+    "season": "summer"
+  },
+  "children_ocr": [
+    {
+      "name": "beach_photo.jpg",
+      "text": "Family at Santa Monica Beach. Kids building sandcastles. Dated July 4, 1985."
+    },
+    {
+      "name": "picnic.jpg",
+      "text": "Picnic in Griffith Park. Mom, Dad, Tommy and Sarah. Beautiful sunny day."
+    }
+  ],
+  "children_descriptions": []
+}
