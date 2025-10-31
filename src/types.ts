@@ -22,12 +22,10 @@ export interface ChildDescription {
 export interface SummarizeRequest {
   directory_name: string;
   files: TextFile[];           // Array of text files with raw content
-  manual_metadata?: any;       // Optional metadata overrides
 }
 
 export interface SummarizeResponse {
-  description: string;
-  metadata: any;
+  description: string;         // Markdown/wiki-style description
   cost_usd: number;
   tokens: number;
 }

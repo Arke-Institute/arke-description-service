@@ -63,13 +63,13 @@ This service provides three endpoints:
 
 ---
 
-## 1. Generate Description
+## 1. Generate Wiki-Style Description
 
 **POST /summarize**
 
-Generates a markdown description of a directory's contents using GPT-OSS-20B.
+Generates comprehensive wiki-style markdown documentation for a directory using GPT-OSS-20B.
 
-Accepts flexible text content from any file format (JSON, XML, TXT, CSV, etc.) and generates comprehensive narrative descriptions.
+Accepts flexible text content from any file format (JSON, XML, TXT, CSV, etc.) and generates rich, encyclopedic-style articles with sections, tables, lists, and narrative context.
 
 ### Request Format
 
@@ -89,36 +89,30 @@ Accepts flexible text content from any file format (JSON, XML, TXT, CSV, etc.) a
       "name": "itinerary.xml",
       "content": "<?xml version=\"1.0\"?>\n<trip><destination>Los Angeles</destination>...</trip>"
     }
-  ],
-  "manual_metadata": {
-    "year": 1985,
-    "season": "summer"
-  }
+  ]
 }
 ```
 
 **Key Features:**
 - `files`: Array of text files with any format (JSON, XML, TXT, CSV, Markdown, etc.)
 - Each file has a `name` (identifier) and `content` (raw text)
-- The LLM intelligently parses all formats and synthesizes a coherent narrative
-- `manual_metadata`: Optional metadata that will be merged into the final output
+- The LLM intelligently parses all formats and synthesizes a comprehensive wiki article
+- Generates rich markdown with sections, tables, lists, and contextual narrative
+- Wikipedia-style encyclopedic approach
 
 ### Response Format
 
 ```json
 {
-  "description": "# Summer 1985\n\nA collection of family photos...",
-  "metadata": {
-    "year": 1985,
-    "season": "summer",
-    "dates": ["1985-06-01", "1985-08-31"],
-    "locations": ["Santa Monica", "California"],
-    "themes": ["family", "vacation", "beach"]
-  },
+  "description": "# Summer 1985 California Family Vacation\n\n## Overview\n\nThis collection documents...\n\n## Timeline\n\n| Date | Event | Location |\n|------|-------|----------|\n...",
   "cost_usd": 0.00142,
   "tokens": 856
 }
 ```
+
+**Output includes:**
+- Comprehensive markdown document (no metadata extraction)
+- Cost and token usage for tracking
 
 ---
 
@@ -354,7 +348,7 @@ All costs are tracked per request and returned in the response.
 
 ## Testing
 
-### Test Description Generation
+### Test Wiki Description Generation
 
 ```bash
 curl -X POST http://localhost:8787/summarize \
@@ -370,10 +364,7 @@ curl -X POST http://localhost:8787/summarize \
         "name": "metadata.json",
         "content": "{\"location\": \"California\", \"people\": [\"John\", \"Mary\"]}"
       }
-    ],
-    "manual_metadata": {
-      "year": 1985
-    }
+    ]
   }'
 ```
 
