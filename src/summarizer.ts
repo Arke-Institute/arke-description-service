@@ -30,8 +30,6 @@ export async function generateDescription(
   const llmResponse = await callLLM(systemPrompt, userPrompt, env);
 
   return {
-    description: llmResponse.description,
-    cost_usd: llmResponse.cost_usd,
-    tokens: llmResponse.tokens
+    description: llmResponse.description
   };
 }

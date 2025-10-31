@@ -104,15 +104,12 @@ Accepts flexible text content from any file format (JSON, XML, TXT, CSV, etc.) a
 
 ```json
 {
-  "description": "# Summer 1985 California Family Vacation\n\n## Overview\n\nThis collection documents...\n\n## Timeline\n\n| Date | Event | Location |\n|------|-------|----------|\n...",
-  "cost_usd": 0.00142,
-  "tokens": 856
+  "description": "# Summer 1985 California Family Vacation\n\n## Overview\n\nThis collection documents...\n\n## Timeline\n\n| Date | Event | Location |\n|------|-------|----------|\n..."
 }
 ```
 
 **Output includes:**
-- Comprehensive markdown document (no metadata extraction)
-- Cost and token usage for tracking
+- Comprehensive markdown document
 
 ---
 

@@ -26,8 +26,6 @@ export interface SummarizeRequest {
 
 export interface SummarizeResponse {
   description: string;         // Markdown/wiki-style description
-  cost_usd: number;
-  tokens: number;
 }
 
 export interface LLMResponse {
