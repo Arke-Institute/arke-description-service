@@ -2,79 +2,47 @@
  * Prompt generation for the archivist LLM
  */
 
-import type { SummarizeRequest, ChildOCR, ChildDescription } from './types';
+import type { SummarizeRequest, TextFile } from './types';
 
 /**
  * Generate system prompt for the archivist role
- * Different prompts for leaf nodes (only OCR) vs aggregation nodes (has child descriptions)
  */
-export function generateSystemPrompt(hasChildDescriptions: boolean): string {
-  if (hasChildDescriptions) {
-    // Aggregation node: synthesizing information from subdirectories
-    return `You are an archivist cataloging a historical photo collection. You are examining a directory that contains both images and subdirectories.
+export function generateSystemPrompt(): string {
+  return `You are an archivist cataloging a historical photo collection. You are examining a directory with various text files containing information.
 
 Your task is to:
-1. Synthesize information from the OCR text of images in this directory
-2. Incorporate descriptions from subdirectories that have already been cataloged
+1. Analyze all provided text files (which may be in various formats: JSON, XML, TXT, Markdown, CSV, etc.)
+2. Synthesize information from all sources into a coherent understanding
 3. Respect any manual metadata provided by curators
-4. Generate a coherent markdown description that rolls up all this information
+4. Generate a descriptive markdown document summarizing the contents
 5. Extract or infer structured metadata (dates, locations, people, events, themes, etc.)
 
 Format your response as a markdown document with:
 - A clear title (# Header)
-- Descriptive sections that summarize the directory's contents
-- Context that connects images and subdirectories into a cohesive narrative
-
-After the markdown description, provide structured metadata as a JSON object.`;
-  } else {
-    // Leaf node: only processing OCR from images
-    return `You are an archivist cataloging a historical photo collection. You are examining a directory containing images.
-
-Your task is to:
-1. Analyze the OCR text extracted from each image
-2. Respect any manual metadata provided by curators
-3. Generate a descriptive markdown document summarizing the contents
-4. Extract or infer structured metadata (dates, locations, people, events, themes, etc.)
-
-Format your response as a markdown document with:
-- A clear title (# Header)
-- Descriptive sections that capture the essence of the images
+- Descriptive sections that capture the essence of the collection
 - Context and historical significance where appropriate
+- Cohesive narrative that connects all information
 
 After the markdown description, provide structured metadata as a JSON object.`;
-  }
 }
 
 /**
- * Format OCR data for inclusion in the user prompt
+ * Format files for inclusion in the user prompt
  */
-function formatOCR(ocrData: ChildOCR[]): string {
-  if (ocrData.length === 0) {
-    return 'No images with OCR text in this directory.';
+function formatFiles(files: TextFile[]): string {
+  if (files.length === 0) {
+    return 'No content files provided for this directory.';
   }
 
-  return ocrData.map((item, index) =>
-    `Image ${index + 1}: ${item.name}\n${item.text}\n`
-  ).join('\n---\n\n');
-}
+  return files.map((file, index) => {
+    // Truncate very long content for readability
+    const maxLength = 1500;
+    const content = file.content.length > maxLength
+      ? file.content.slice(0, maxLength) + '\n... [content truncated]'
+      : file.content;
 
-/**
- * Format child descriptions for inclusion in the user prompt
- */
-function formatChildDescriptions(children: ChildDescription[]): string {
-  if (children.length === 0) {
-    return '';
-  }
-
-  const formatted = children.map((child, index) => {
-    const metadataStr = child.metadata
-      ? `\nMetadata: ${JSON.stringify(child.metadata, null, 2)}`
-      : '';
-
-    return `Subdirectory ${index + 1}: ${child.name}\n\n${child.description}${metadataStr}`;
+    return `File ${index + 1}: ${file.name}\n\n${content}`;
   }).join('\n\n---\n\n');
-
-  return `\n\n## Child Subdirectories\n\nThe following subdirectories have already been cataloged:\n\n${formatted}`;
 }
 
 /**
@@ -92,13 +60,12 @@ function formatManualMetadata(metadata: any): string {
  * Generate the complete user prompt
  */
 export function generateUserPrompt(request: SummarizeRequest): string {
-  const ocrSection = `## OCR Text from Images\n\n${formatOCR(request.children_ocr)}`;
-  const childrenSection = formatChildDescriptions(request.children_descriptions);
+  const filesSection = `## Content Files\n\n${formatFiles(request.files)}`;
   const metadataSection = formatManualMetadata(request.manual_metadata);
 
   return `Directory: ${request.directory_name}
 
-${ocrSection}${childrenSection}${metadataSection}
+${filesSection}${metadataSection}
 
 Please provide:
 1. A markdown description of this directory's contents

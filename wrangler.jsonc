@@ -18,6 +18,13 @@
     "command": "npm run build"
   },
 
+  "routes": [
+    {
+      "pattern": "description.arke.institute",
+      "custom_domain": true
+    }
+  ],
+
   // Observability
   "observability": {
     "enabled": true

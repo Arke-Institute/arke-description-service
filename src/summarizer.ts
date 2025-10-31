@@ -46,19 +46,12 @@ export async function generateDescription(
     throw new Error('directory_name is required');
   }
 
-  if (!Array.isArray(request.children_ocr)) {
-    throw new Error('children_ocr must be an array');
+  if (!Array.isArray(request.files)) {
+    throw new Error('files must be an array');
   }
-
-  if (!Array.isArray(request.children_descriptions)) {
-    throw new Error('children_descriptions must be an array');
-  }
-
-  // Determine if this is a leaf node or aggregation node
-  const hasChildDescriptions = request.children_descriptions.length > 0;
 
   // Generate prompts
-  const systemPrompt = generateSystemPrompt(hasChildDescriptions);
+  const systemPrompt = generateSystemPrompt();
   const userPrompt = generateUserPrompt(request);
 
   // Call LLM
