@@ -53,8 +53,9 @@ This is a simple, focused service with clear separation of concerns:
 1. `index.ts` validates the request and environment
 2. `summarizer.ts` orchestrates the description generation
 3. `prompts.ts` generates system and user prompts from the request data
-4. `llm.ts` calls the DeepInfra API and processes the response
-5. Response flows back with the generated markdown description
+4. `truncation.ts` applies progressive tax algorithm to fit files within token budget
+5. `llm.ts` calls the DeepInfra API and processes the response
+6. Response flows back with the generated markdown description
 
 **LLM Integration (`src/llm.ts`)**
 - Calls DeepInfra's OpenAI-compatible API
@@ -63,14 +64,28 @@ This is a simple, focused service with clear separation of concerns:
 - Extracts title and summary from generated markdown
 
 **Prompt Engineering (`src/prompts.ts`)**
-- Files are truncated to 800 characters each to manage token usage
 - System prompt defines the "archivist" role and output structure
 - User prompt includes directory name and formatted file contents
 - Target output: 200-350 words with 4 sections (Overview, Background, Contents, Scope)
+- Uses progressive tax truncation algorithm to intelligently manage file sizes within token limits
+
+**Token Management (`src/truncation.ts`)**
+- Implements a "progressive tax" truncation algorithm (see PROGRESSIVE-TAX-ALGORITHM.md)
+- Protects small files from truncation when possible
+- Distributes truncation burden proportionally among large files
+- Token budget calculation: `(CONTEXT_WINDOW - system_prompt - user_template - output) × SAFETY_MARGIN`
+- Default context window: 131,000 tokens
+- Default safety margin: 70% (prevents edge cases near token limits)
+- Ensures all requests fit within model's context window without API errors
 
 **Configuration (`wrangler.jsonc`)**
 - Deployed to: `description.arke.institute`
-- Environment variables: DEEPINFRA_BASE_URL, MODEL_NAME, MAX_TOKENS (3072)
+- Environment variables:
+  - `DEEPINFRA_BASE_URL`: DeepInfra API endpoint
+  - `MODEL_NAME`: LLM model identifier (openai/gpt-oss-20b)
+  - `MAX_TOKENS`: Maximum output tokens (3072)
+  - `CONTEXT_WINDOW_TOKENS`: Model's input context window (131000)
+  - `SAFETY_MARGIN_RATIO`: Safety margin for token budget (0.7 = 70%)
 - Observability enabled for monitoring
 
 ## Request/Response Schema

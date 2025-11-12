@@ -24,7 +24,7 @@ export async function generateDescription(
 
   // Generate prompts
   const systemPrompt = generateSystemPrompt();
-  const userPrompt = generateUserPrompt(request);
+  const userPrompt = generateUserPrompt(request, env);
 
   // Call LLM
   const llmResponse = await callLLM(systemPrompt, userPrompt, env);

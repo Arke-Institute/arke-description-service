@@ -30,3 +30,8 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Test scripts (keep only unit tests in src/)
+test-*.js
+quick-test.js
+debug-*.js

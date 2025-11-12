@@ -7,6 +7,8 @@ export interface Env {
   DEEPINFRA_BASE_URL: string;
   MODEL_NAME: string;
   MAX_TOKENS: number;
+  CONTEXT_WINDOW_TOKENS?: number;
+  SAFETY_MARGIN_RATIO?: number;
 }
 
 export interface TextFile {
@@ -66,4 +68,30 @@ export interface OpenAIResponse {
     finish_reason: string;
   }>;
   usage: OpenAIUsage;
+}
+
+export interface TokenizedFile {
+  name: string;
+  content: string;
+  tokens: number;
+  originalTokens: number;
+}
+
+export interface TruncationConfig {
+  contextWindowTokens: number;
+  maxOutputTokens: number;
+  safetyMarginRatio: number;
+  systemPromptTokens: number;
+  userPromptTemplateTokens: number;
+}
+
+export interface TruncationResult {
+  files: TokenizedFile[];
+  totalTokensBefore: number;
+  totalTokensAfter: number;
+  targetTokens: number;
+  deficit: number;
+  protectionMode: boolean;
+  filesProtected: number;
+  filesTruncated: number;
 }

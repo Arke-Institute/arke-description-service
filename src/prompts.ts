@@ -2,7 +2,8 @@
  * Prompt generation for the archivist LLM
  */
 
-import type { SummarizeRequest, TextFile } from './types';
+import type { Env, SummarizeRequest, TextFile, TokenizedFile } from './types';
+import { estimatePromptTokens, truncateFilesToBudget } from './truncation';
 
 /**
  * Generate system prompt for the archivist role
@@ -29,28 +30,64 @@ Write like a library catalog or encyclopedia entry—clear, accurate, neutral.`;
 
 /**
  * Format files for inclusion in the user prompt
+ * Files are already truncated by the progressive tax algorithm
  */
-function formatFiles(files: TextFile[]): string {
+function formatFiles(files: TokenizedFile[]): string {
   if (files.length === 0) {
     return 'No content files provided for this directory.';
   }
 
   return files.map((file, index) => {
-    // Truncate content to save tokens - focus on quality over quantity
-    const maxLength = 800;
-    const content = file.content.length > maxLength
-      ? file.content.slice(0, maxLength) + '\n... [content truncated]'
-      : file.content;
-
-    return `File ${index + 1}: ${file.name}\n\n${content}`;
+    return `File ${index + 1}: ${file.name}\n\n${file.content}`;
   }).join('\n\n---\n\n');
 }
 
 /**
- * Generate the complete user prompt
+ * Generate the complete user prompt with intelligent truncation
  */
-export function generateUserPrompt(request: SummarizeRequest): string {
-  const filesSection = `## Source Materials\n\n${formatFiles(request.files)}`;
+export function generateUserPrompt(request: SummarizeRequest, env: Env): string {
+  // Default configuration values
+  const contextWindowTokens = env.CONTEXT_WINDOW_TOKENS || 131000;
+  const maxOutputTokens = env.MAX_TOKENS || 3072;
+  const safetyMarginRatio = env.SAFETY_MARGIN_RATIO || 0.7;
+
+  // Calculate token counts for prompts
+  const systemPrompt = generateSystemPrompt();
+  const systemPromptTokens = estimatePromptTokens(systemPrompt);
+
+  // Estimate user prompt template tokens (without file content)
+  const userPromptTemplate = `Directory: ${request.directory_name}
+
+## Source Materials
+
+[FILE_CONTENT_PLACEHOLDER]
+
+Write a clear, factual description (200-350 words) of this archived item using the structure above. Describe what's here based on the source materials provided.`;
+  const userPromptTemplateTokens = estimatePromptTokens(userPromptTemplate);
+
+  // Apply progressive tax truncation to files
+  const truncationResult = truncateFilesToBudget(request.files, {
+    contextWindowTokens,
+    maxOutputTokens,
+    safetyMarginRatio,
+    systemPromptTokens,
+    userPromptTemplateTokens
+  });
+
+  // Log truncation stats (visible in Cloudflare Workers logs)
+  console.log('Progressive Tax Truncation:', {
+    totalFiles: request.files.length,
+    tokensBefore: truncationResult.totalTokensBefore,
+    tokensAfter: truncationResult.totalTokensAfter,
+    targetTokens: truncationResult.targetTokens,
+    deficit: truncationResult.deficit,
+    protectionMode: truncationResult.protectionMode,
+    filesProtected: truncationResult.filesProtected,
+    filesTruncated: truncationResult.filesTruncated
+  });
+
+  // Format files with truncated content
+  const filesSection = `## Source Materials\n\n${formatFiles(truncationResult.files)}`;
 
   return `Directory: ${request.directory_name}
 

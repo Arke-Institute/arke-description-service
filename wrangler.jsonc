@@ -8,7 +8,9 @@
   "vars": {
     "DEEPINFRA_BASE_URL": "https://api.deepinfra.com/v1/openai",
     "MODEL_NAME": "openai/gpt-oss-20b",
-    "MAX_TOKENS": 3072
+    "MAX_TOKENS": 3072,
+    "CONTEXT_WINDOW_TOKENS": 131000,
+    "SAFETY_MARGIN_RATIO": 0.7
   },
 
   // Note: Set DEEPINFRA_API_KEY as a secret using:
