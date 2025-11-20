@@ -8,8 +8,8 @@ import { estimatePromptTokens, truncateFilesToBudget } from './truncation';
 /**
  * Generate system prompt for the archivist role
  */
-export function generateSystemPrompt(): string {
-  return `You are an archivist writing clear, factual descriptions of archived materials to help people discover and understand collections.
+export function generateSystemPrompt(customPrompt?: string): string {
+  let prompt = `You are an archivist writing clear, factual descriptions of archived materials to help people discover and understand collections.
 
 Write encyclopedia-style descriptions that:
 - Describe what the materials contain and cover
@@ -26,6 +26,12 @@ Use this structure:
 ## Scope - Coverage (dates, geography, topics, what's included/excluded)
 
 Write like a library catalog or encyclopedia entry—clear, accurate, neutral.`;
+
+  if (customPrompt) {
+    prompt += `\n\nADDITIONAL INSTRUCTIONS:\n${customPrompt}`;
+  }
+
+  return prompt;
 }
 
 /**
@@ -52,7 +58,7 @@ export function generateUserPrompt(request: SummarizeRequest, env: Env): string 
   const safetyMarginRatio = env.SAFETY_MARGIN_RATIO || 0.7;
 
   // Calculate token counts for prompts
-  const systemPrompt = generateSystemPrompt();
+  const systemPrompt = generateSystemPrompt(request.custom_prompt);
   const systemPromptTokens = estimatePromptTokens(systemPrompt);
 
   // Estimate user prompt template tokens (without file content)

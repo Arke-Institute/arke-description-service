@@ -19,6 +19,7 @@ export interface TextFile {
 export interface SummarizeRequest {
   directory_name: string;
   files: TextFile[];           // Array of text files with raw content
+  custom_prompt?: string;      // Optional custom instructions for this specific request
 }
 
 export interface SummarizeResponse {

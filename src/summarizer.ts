@@ -23,7 +23,7 @@ export async function generateDescription(
   }
 
   // Generate prompts
-  const systemPrompt = generateSystemPrompt();
+  const systemPrompt = generateSystemPrompt(request.custom_prompt);
   const userPrompt = generateUserPrompt(request, env);
 
   // Call LLM
