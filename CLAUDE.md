@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a Cloudflare Worker service that generates wiki-style archival descriptions using LLM (GPT-OSS-20B via DeepInfra). It receives directory information and text file contents, then produces structured markdown descriptions suitable for the Arke Institute photo archive.
+This is a Cloudflare Worker service that generates wiki-style archival descriptions using LLM (Qwen3-32B via DeepInfra). It uses a Durable Object pattern to process batches of entities (PIs) in parallel with retry logic and callbacks to the orchestrator.
 
 ## Development Commands
 
@@ -41,64 +41,83 @@ wrangler secret put DEEPINFRA_API_KEY
 
 ## Architecture
 
-This is a simple, focused service with clear separation of concerns:
+### Batch Processing Pattern
 
-**Entry Point (`src/index.ts`)**
-- Single HTTP endpoint: `POST /summarize`
-- Request validation and CORS handling
-- Environment variable validation (DEEPINFRA_API_KEY, DEEPINFRA_BASE_URL, MODEL_NAME)
-- Routes requests to the summarizer module
+The service uses the AI Service DO pattern (see `SERVICE_DO_PATTERN.md` in ai-services root):
 
-**Request Flow**
-1. `index.ts` validates the request and environment
-2. `summarizer.ts` orchestrates the description generation
-3. `prompts.ts` generates system and user prompts from the request data
-4. `truncation.ts` applies progressive tax algorithm to fit files within token budget
-5. `llm.ts` calls the DeepInfra API and processes the response
-6. Response flows back with the generated markdown description
+```
+Orchestrator DO
+      │
+      │  POST /process { batch_id, chunk_id, pis[], callback_url }
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Description Service Worker                  │
+│                                                              │
+│  Routes:                                                     │
+│  - POST /process     → Creates/triggers DescriptionBatchDO  │
+│  - GET /status/:b/:c → Returns DO status                    │
+│  - GET /health       → Health check                         │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              DescriptionBatchDO (one per chunk)             │
+│                                                              │
+│  State Machine:                                              │
+│  PROCESSING → PUBLISHING → CALLBACK → DONE                  │
+│                                                              │
+│  For each PI in parallel:                                    │
+│  1. Fetch context from IPFS (pinax, cheimarros, children)   │
+│  2. Generate description via LLM (with retry)               │
+│  3. Upload description.md to IPFS                           │
+│  4. Append version to entity                                │
+│                                                              │
+│  When all PIs complete:                                      │
+│  - POST callback to orchestrator with results               │
+│  - Cleanup DO storage                                        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**LLM Integration (`src/llm.ts`)**
-- Calls DeepInfra's OpenAI-compatible API
-- Uses `openai/gpt-oss-20b` model with temperature 0.3
-- Calculates costs: $0.03/M input tokens, $0.14/M output tokens
-- Extracts title and summary from generated markdown
+### File Structure
 
-**Prompt Engineering (`src/prompts.ts`)**
-- System prompt defines the "archivist" role and output structure
-- User prompt includes directory name and formatted file contents
-- Target output: 200-350 words with 4 sections (Overview, Background, Contents, Scope)
-- Uses progressive tax truncation algorithm to intelligently manage file sizes within token limits
+```
+src/
+├── index.ts                      # Worker entry point, routing
+├── types.ts                      # TypeScript interfaces
+├── durable-objects/
+│   └── DescriptionBatchDO.ts     # Main DO class
+├── services/
+│   └── ipfs-client.ts            # IPFS wrapper API client
+├── lib/
+│   ├── context-fetcher.ts        # Fetches context from IPFS
+│   ├── description-generator.ts  # LLM call wrapper
+│   └── retry.ts                  # Exponential backoff utility
+├── prompts.ts                    # System/user prompt generation
+├── truncation.ts                 # Progressive tax truncation
+└── llm.ts                        # DeepInfra API client
+```
 
-**Token Management (`src/truncation.ts`)**
-- Implements a "progressive tax" truncation algorithm (see PROGRESSIVE-TAX-ALGORITHM.md)
-- Protects small files from truncation when possible
-- Distributes truncation burden proportionally among large files
-- Token budget calculation: `(CONTEXT_WINDOW - system_prompt - user_template - output) × SAFETY_MARGIN`
-- Default context window: 131,000 tokens
-- Default safety margin: 70% (prevents edge cases near token limits)
-- Ensures all requests fit within model's context window without API errors
+### Bindings
 
-**Configuration (`wrangler.jsonc`)**
-- Deployed to: `description.arke.institute`
-- Environment variables:
-  - `DEEPINFRA_BASE_URL`: DeepInfra API endpoint
-  - `MODEL_NAME`: LLM model identifier (openai/gpt-oss-20b)
-  - `MAX_TOKENS`: Maximum output tokens (3072)
-  - `CONTEXT_WINDOW_TOKENS`: Model's input context window (131000)
-  - `SAFETY_MARGIN_RATIO`: Safety margin for token budget (0.7 = 70%)
-- Observability enabled for monitoring
+- `STAGING_BUCKET` (R2) - Staging bucket for intermediate files
+- `IPFS_WRAPPER` (Service) - IPFS wrapper API for entity operations
+- `DESCRIPTION_BATCH_DO` (DO) - Durable Object namespace
 
-## Request/Response Schema
+## API Endpoints
+
+### POST /process - Start Batch Processing
 
 **Request:**
 ```json
 {
-  "directory_name": "string",
-  "files": [
-    {
-      "name": "string",
-      "content": "string"
-    }
+  "batch_id": "batch_01HXYZ789",
+  "chunk_id": "0",
+  "callback_url": "https://orchestrator.example.com/callback/batch_01HXYZ789/description",
+  "r2_prefix": "staging/batch_01HXYZ789/",
+  "custom_prompt": "Focus on historical significance",
+  "pis": [
+    { "pi": "01HXYZ789ABC", "current_tip": "bafy..." },
+    { "pi": "01HXYZ789DEF", "current_tip": "bafy..." }
   ]
 }
 ```
@@ -106,18 +125,115 @@ This is a simple, focused service with clear separation of concerns:
 **Response:**
 ```json
 {
-  "description": "# Title\n\n## Overview\n...\n\n## Background\n...\n\n## Contents\n...\n\n## Scope\n..."
+  "status": "accepted",
+  "chunk_id": "0",
+  "total_pis": 2
 }
 ```
 
-## TypeScript Configuration
+### GET /status/:batchId/:chunkId - Check Status
 
-- Target: ES2022 with ESM modules
-- Uses bundler module resolution for Cloudflare Workers
-- Strict mode enabled
-- No file emission (handled by Wrangler)
-- Cloudflare Workers types included
+**Response:**
+```json
+{
+  "status": "processing",
+  "phase": "PROCESSING",
+  "progress": {
+    "total": 10,
+    "pending": 3,
+    "processing": 2,
+    "done": 4,
+    "failed": 1
+  }
+}
+```
+
+### Callback Payload (sent to orchestrator)
+
+```json
+{
+  "batch_id": "batch_01HXYZ789",
+  "chunk_id": "0",
+  "status": "success",
+  "results": [
+    {
+      "pi": "01HXYZ789ABC",
+      "status": "success",
+      "new_tip": "bafy...",
+      "new_version": 5
+    },
+    {
+      "pi": "01HXYZ789DEF",
+      "status": "error",
+      "error": "LLM timeout after 3 retries"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "succeeded": 1,
+    "failed": 1,
+    "processing_time_ms": 12500
+  }
+}
+```
+
+## Configuration
+
+### Environment Variables (`wrangler.jsonc`)
+
+**LLM Configuration:**
+- `DEEPINFRA_BASE_URL`: DeepInfra API endpoint
+- `MODEL_NAME`: LLM model identifier (Qwen/Qwen3-32B)
+- `MAX_TOKENS`: Maximum output tokens (3072)
+- `CONTEXT_WINDOW_TOKENS`: Model's input context window (131000)
+- `SAFETY_MARGIN_RATIO`: Safety margin for token budget (0.7 = 70%)
+
+**DO Configuration:**
+- `MAX_RETRIES_PER_PI`: Max retries for each PI (default: 3)
+- `MAX_CALLBACK_RETRIES`: Max callback retry attempts (default: 3)
+- `ALARM_INTERVAL_MS`: Delay between alarm iterations (default: 100)
+
+## Context Fetching
+
+The DO fetches all context from IPFS (not R2 staging):
+
+1. **Entity** - Get entity metadata and component CIDs
+2. **pinax.json** - Structured metadata from PINAX phase
+3. **cheimarros.json** - Knowledge graph from Cheimarros phase
+4. **\*.ref.json** - Refs with OCR text (fetched via IPFS CIDs)
+5. **Child descriptions** - description.md from each child entity
+6. **Previous description** - For reprocessing context
+
+## Retry Logic
+
+- **Per-PI retries**: Exponential backoff (1s, 2s, 4s, ...) up to MAX_RETRIES_PER_PI
+- **Callback retries**: Exponential backoff up to MAX_CALLBACK_RETRIES
+- **Failed PIs**: Marked as error, included in callback, don't block other PIs
 
 ## Testing
 
 Tests are configured via Vitest. Run with `npm test`.
+
+### Manual Testing
+
+```bash
+# Start dev server
+npm run dev
+
+# Test health endpoint
+curl http://localhost:8787/health
+
+# Submit batch (requires IPFS entities to exist)
+curl -X POST http://localhost:8787/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "batch_id": "test_batch",
+    "chunk_id": "0",
+    "callback_url": "https://example.com/callback",
+    "r2_prefix": "staging/test/",
+    "pis": [{"pi": "...", "current_tip": "..."}]
+  }'
+
+# Check status
+curl http://localhost:8787/status/test_batch/0
+```

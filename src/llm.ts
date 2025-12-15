@@ -71,7 +71,9 @@ export async function callLLM(
     throw new Error('LLM API returned no choices');
   }
 
-  const description = data.choices[0].message.content;
+  // Extract description, stripping any <think>...</think> tags from reasoning models
+  let description = data.choices[0].message.content;
+  description = description.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
   return {
     description,

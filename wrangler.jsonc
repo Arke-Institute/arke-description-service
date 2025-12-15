@@ -6,21 +6,66 @@
 
   // Environment variables
   "vars": {
+    // LLM Configuration
     "DEEPINFRA_BASE_URL": "https://api.deepinfra.com/v1/openai",
-    "MODEL_NAME": "openai/gpt-oss-20b",
+    "MODEL_NAME": "Qwen/Qwen3-32B",
     "MAX_TOKENS": 3072,
     "CONTEXT_WINDOW_TOKENS": 131000,
-    "SAFETY_MARGIN_RATIO": 0.7
+    "SAFETY_MARGIN_RATIO": 0.7,
+
+    // DO Configuration
+    "MAX_RETRIES_PER_PI": "3",
+    "MAX_CALLBACK_RETRIES": "3",
+    "ALARM_INTERVAL_MS": "100"
   },
 
   // Note: Set DEEPINFRA_API_KEY as a secret using:
   // wrangler secret put DEEPINFRA_API_KEY
+
+  // R2 Bucket binding
+  "r2_buckets": [
+    {
+      "binding": "STAGING_BUCKET",
+      "bucket_name": "arke-staging"
+    }
+  ],
+
+  // Service bindings
+  "services": [
+    {
+      "binding": "IPFS_WRAPPER",
+      "service": "arke-ipfs-api"
+    },
+    {
+      "binding": "ORCHESTRATOR",
+      "service": "arke-orchestrator"
+    }
+  ],
+
+  // Durable Objects
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DESCRIPTION_BATCH_DO",
+        "class_name": "DescriptionBatchDO"
+      }
+    ]
+  },
+
+  // DO migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["DescriptionBatchDO"]
+    }
+  ],
 
   // Build configuration
   "build": {
     "command": "npm run build"
   },
 
+  // Routes
   "routes": [
     {
       "pattern": "description.arke.institute",
