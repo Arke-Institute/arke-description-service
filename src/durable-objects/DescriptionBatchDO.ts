@@ -21,7 +21,6 @@ import {
 import { IPFSClient } from '../services/ipfs-client';
 import { fetchDescriptionContext } from '../lib/context-fetcher';
 import { generateDescription } from '../lib/description-generator';
-import { withRetry } from '../lib/retry';
 
 export class DescriptionBatchDO extends DurableObject<Env> {
   private state: BatchState | null = null;
@@ -299,26 +298,57 @@ export class DescriptionBatchDO extends DurableObject<Env> {
 
   /**
    * Publish a single PI's description to IPFS
+   *
+   * Uses CAS retry pattern: fetch fresh tip before each attempt.
+   * This handles cases where the entity tip changed after orchestrator sent the request
+   * (e.g., parent-child relationship establishment updates child tips).
    */
   private async publishPI(
     pi: PIState
   ): Promise<{ cid: string; tip: string; ver: number }> {
-    // Upload description to IPFS
+    // Upload description to IPFS (only once, CID is deterministic)
     const cid = await this.ipfsClient.uploadContent(pi.description!, 'description.md');
 
-    // Append version to entity with retry for CAS conflicts
-    const result = await withRetry(
-      () =>
-        this.ipfsClient.appendVersion(
+    // Append version with CAS retry - fetch fresh tip on each attempt
+    const maxRetries = 5;
+    const baseDelay = 100;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Fetch fresh tip before each attempt (critical for CAS success)
+        const entity = await this.ipfsClient.getEntity(pi.pi);
+        const freshTip = entity.tip;
+
+        const result = await this.ipfsClient.appendVersion(
           pi.pi,
-          pi.current_tip,
+          freshTip,
           { 'description.md': cid },
           'Added description'
-        ),
-      { maxRetries: 3, baseDelayMs: 500 }
-    );
+        );
 
-    return { cid, tip: result.tip, ver: result.ver };
+        return { cid, tip: result.tip, ver: result.ver };
+      } catch (error: any) {
+        const isCASFailure =
+          error.message?.includes('409') ||
+          error.message?.includes('CAS') ||
+          error.message?.includes('expected tip');
+
+        if (isCASFailure && attempt < maxRetries - 1) {
+          // Exponential backoff with jitter
+          const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 50;
+          console.log(
+            `[Description] CAS conflict for ${pi.pi}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Non-CAS error or final attempt
+        throw error;
+      }
+    }
+
+    throw new Error(`Failed to publish ${pi.pi} after ${maxRetries} attempts`);
   }
 
   /**

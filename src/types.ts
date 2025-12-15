@@ -38,7 +38,7 @@ export interface ProcessRequest {
 
   pis: Array<{
     pi: string;
-    current_tip: string;
+    current_tip?: string;  // Deprecated: Service fetches fresh tips from IPFS
   }>;
 }
 
@@ -71,7 +71,7 @@ export type Phase = 'PENDING' | 'PROCESSING' | 'PUBLISHING' | 'CALLBACK' | 'DONE
 
 export interface PIState {
   pi: string;
-  current_tip: string;
+  current_tip?: string;  // Deprecated: Service fetches fresh tips from IPFS
   status: 'pending' | 'processing' | 'done' | 'error';
   retry_count: number;
 

@@ -28,7 +28,12 @@ export class IPFSClient {
       const text = await resp.text();
       throw new Error(`Failed to get entity ${pi}: ${resp.status} - ${text}`);
     }
-    return resp.json();
+    const result: any = await resp.json();
+    // API returns manifest_cid, map to tip for consistency
+    return {
+      ...result,
+      tip: result.tip || result.manifest_cid,
+    };
   }
 
   /**
