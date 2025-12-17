@@ -8,9 +8,9 @@
   "vars": {
     // LLM Configuration
     "DEEPINFRA_BASE_URL": "https://api.deepinfra.com/v1/openai",
-    "MODEL_NAME": "Qwen/Qwen3-32B",
+    "MODEL_NAME": "openai/gpt-oss-120b",
     "MAX_TOKENS": 3072,
-    "CONTEXT_WINDOW_TOKENS": 131000,
+    "CONTEXT_WINDOW_TOKENS": 128000,  // gpt-oss-120b supports 128K context
     "SAFETY_MARGIN_RATIO": 0.7,
 
     // DO Configuration
@@ -42,7 +42,7 @@
     }
   ],
 
-  // Durable Objects
+  // Durable Objects - SQLite-backed
   "durable_objects": {
     "bindings": [
       {
@@ -52,11 +52,19 @@
     ]
   },
 
-  // DO migrations
+  // DO migrations - v2 deleted old KV DO, v3 creates new SQLite DO
   "migrations": [
     {
       "tag": "v1",
       "new_classes": ["DescriptionBatchDO"]
+    },
+    {
+      "tag": "v2",
+      "deleted_classes": ["DescriptionBatchDO"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["DescriptionBatchDO"]
     }
   ],
 

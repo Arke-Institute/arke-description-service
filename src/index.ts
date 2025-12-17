@@ -13,7 +13,7 @@
 import type { Env, ProcessRequest } from './types';
 import { DescriptionBatchDO } from './durable-objects/DescriptionBatchDO';
 
-// Export the Durable Object class
+// Export DO for Cloudflare Workers runtime
 export { DescriptionBatchDO };
 
 export default {

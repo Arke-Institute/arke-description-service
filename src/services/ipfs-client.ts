@@ -3,7 +3,7 @@
  */
 
 export interface Entity {
-  pi: string;
+  id: string;
   tip: string;
   ver: number;
   components: Record<string, string>;

@@ -41,6 +41,16 @@ wrangler secret put DEEPINFRA_API_KEY
 
 ## Architecture
 
+### SQLite-backed Durable Object
+
+The DO uses SQLite storage (10GB limit) instead of KV storage (128KB limit) to handle large context data from OCR text. Tables:
+
+- `batch_state` - Single row with batch metadata and phase
+- `pi_list` - List of PIs to process
+- `pi_state` - Per-PI processing status, results, and errors
+- `pi_context_files` - Cached context files per PI (for retries)
+- `pi_context_meta` - Context metadata per PI
+
 ### Batch Processing Pattern
 
 The service uses the AI Service DO pattern (see `SERVICE_DO_PATTERN.md` in ai-services root):
@@ -112,13 +122,8 @@ src/
 {
   "batch_id": "batch_01HXYZ789",
   "chunk_id": "0",
-  "callback_url": "https://orchestrator.example.com/callback/batch_01HXYZ789/description",
-  "r2_prefix": "staging/batch_01HXYZ789/",
   "custom_prompt": "Focus on historical significance",
-  "pis": [
-    { "pi": "01HXYZ789ABC", "current_tip": "bafy..." },
-    { "pi": "01HXYZ789DEF", "current_tip": "bafy..." }
-  ]
+  "pis": ["01HXYZ789ABC", "01HXYZ789DEF"]
 }
 ```
 

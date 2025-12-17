@@ -32,14 +32,11 @@ export interface Env {
 export interface ProcessRequest {
   batch_id: string;
   chunk_id: string;
-  callback_url?: string;  // Optional - service binding is preferred
-  r2_prefix: string;
+  callback_url?: string;  // Deprecated - service binding is preferred
+  r2_prefix?: string;     // Deprecated - service fetches context from IPFS
   custom_prompt?: string;
 
-  pis: Array<{
-    pi: string;
-    current_tip?: string;  // Deprecated: Service fetches fresh tips from IPFS
-  }>;
+  pis: string[];          // Just PI strings - service fetches context from IPFS
 }
 
 export interface CallbackPayload {
@@ -92,8 +89,8 @@ export interface BatchState {
   // Identity
   batch_id: string;
   chunk_id: string;
-  callback_url?: string;  // Optional - service binding is preferred
-  r2_prefix: string;
+  callback_url?: string;  // Deprecated - service binding is preferred
+  r2_prefix?: string;     // Deprecated
   custom_prompt?: string;
 
   // State machine
@@ -101,8 +98,8 @@ export interface BatchState {
   started_at: string;
   completed_at?: string;
 
-  // PIs
-  pis: PIState[];
+  // PI list (just the PI identifiers - full state stored separately per-PI)
+  pi_list: string[];
 
   // Callback tracking
   callback_retry_count: number;
