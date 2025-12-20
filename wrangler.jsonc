@@ -8,9 +8,9 @@
   "vars": {
     // LLM Configuration
     "DEEPINFRA_BASE_URL": "https://api.deepinfra.com/v1/openai",
-    "MODEL_NAME": "openai/gpt-oss-120b",
+    "MODEL_NAME": "Qwen/Qwen3-235B-A22B-Instruct-2507",
     "MAX_TOKENS": 3072,
-    "CONTEXT_WINDOW_TOKENS": 128000,  // gpt-oss-120b supports 128K context
+    "CONTEXT_WINDOW_TOKENS": 262144,  // Qwen3-235B supports 256K context
     "SAFETY_MARGIN_RATIO": 0.7,
 
     // DO Configuration

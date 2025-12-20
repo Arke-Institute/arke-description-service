@@ -4,9 +4,9 @@
 
 import type { Env, LLMResponse, OpenAIRequest, OpenAIResponse, OpenAIUsage } from './types';
 
-// Pricing per the Common Setup.md
-const INPUT_COST_PER_MILLION = 0.03;
-const OUTPUT_COST_PER_MILLION = 0.14;
+// Pricing for Qwen3-235B-A22B-Instruct-2507 via DeepInfra
+const INPUT_COST_PER_MILLION = 0.071;
+const OUTPUT_COST_PER_MILLION = 0.463;
 
 /**
  * Calculate cost in USD based on token usage
